@@ -21,7 +21,6 @@ DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
     wcscpy((WCHAR*)p, L"BillBox"); p += (wcslen(L"BillBox") + 1) * 2;
     *(WORD*)p = 13; p += 2; // Font size
     wcscpy((WCHAR*)p, L"Segoe UI"); p += (wcslen(L"Segoe UI") + 1) * 2;
-
     auto AddControl = [&](DWORD style, WORD id, WORD x, WORD y, WORD cx, WORD cy, WORD classAtom, const wchar_t* title) {
         p = (BYTE*)(((uintptr_t)p + 3) & ~3);
         DLGITEMTEMPLATE* item = (DLGITEMTEMPLATE*)p;
@@ -98,7 +97,7 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam) {
     FlashWindowEx(&fi);
 
 SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
- return FALSE;
+      return FALSE;
 }
 
     case WM_COMMAND:
