@@ -3,8 +3,9 @@
 
 
 1.Clone into local dir 
-```bash```
+```bash
 git clone  https://github.com/BillBox-technologies/window.git
+
 
 
 
