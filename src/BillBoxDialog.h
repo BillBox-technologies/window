@@ -19,3 +19,4 @@ struct CustomerInfo {
 // Function declarations
 bool ShowBillBoxDialog(CustomerInfo& info, HWND hParent = nullptr);
 INT_PTR CALLBACK BillBoxDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam);
+ 

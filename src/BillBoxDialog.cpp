@@ -141,6 +141,7 @@ SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
 }
 
 bool ShowBillBoxDialog(CustomerInfo& info, HWND hParent) {
+
     HGLOBAL hTemplate = nullptr;
     DLGTEMPLATE* dlg = CreateDialogTemplate(hTemplate);
 
