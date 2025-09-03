@@ -1,11 +1,10 @@
-
 #include "BillBoxDialog.h"
 #include <tchar.h>
 
 static CustomerInfo* g_pInfo = nullptr;
 
 DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
-    const int itemCount = 6;
+    const int itemCount = 8;
 
     hTemplate = GlobalAlloc(GPTR, 4096);
     BYTE* p = (BYTE*)GlobalLock(hTemplate);
@@ -13,7 +12,7 @@ DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
 
     dlg->style = WS_POPUP | WS_CAPTION | WS_SYSMENU | DS_SETFONT | WS_VISIBLE;
     dlg->cdit = itemCount;
-    dlg->x = 10; dlg->y = 10; dlg->cx = 220; dlg->cy = 90;
+    dlg->x = 10; dlg->y = 10; dlg->cx = 220; dlg->cy = 110;
 
     p += sizeof(DLGTEMPLATE);
     *(WORD*)p = 0; p += 2; // No menu
@@ -39,7 +38,11 @@ DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
     AddControl(ES_AUTOHSCROLL | WS_BORDER, IDC_MOBILE, 60, 26, 140, 12, 0x81, L"");
     AddControl(SS_LEFT,      IDC_LABEL_NAME,    10, 46,  40, 10, 0x82, L"Name:");
     AddControl(ES_AUTOHSCROLL | WS_BORDER, IDC_NAME,   60, 44, 140, 12, 0x81, L"");
-    AddControl(BS_PUSHBUTTON, IDC_EBILL_BTN,    75, 64,  60, 14, 0x80, L"E-Bill");
+
+    AddControl(BS_AUTOCHECKBOX, IDC_PAPER_BILL,  10, 64, 80, 12, 0x80, L"Paper Bill");
+    AddControl(BS_AUTOCHECKBOX, IDC_BOTH_BILL,  120, 64, 90, 12, 0x80, L"E-Bill + Paper Bill");
+
+    AddControl(BS_PUSHBUTTON, IDC_EBILL_BTN,    75, 84,  60, 14, 0x80, L"E-Bill");
 
     GlobalUnlock(hTemplate);
     return (DLGTEMPLATE*)hTemplate;
@@ -49,56 +52,55 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam) {
     static bool handlingInput = false;
 
     switch (msg) {
-    case WM_INITDIALOG:{
-    g_pInfo = reinterpret_cast<CustomerInfo*>(lParam);
+    case WM_INITDIALOG: {
+        g_pInfo = reinterpret_cast<CustomerInfo*>(lParam);
 
-    // Position as before...
-    HWND hwndOwner = GetForegroundWindow();
-    if (!hwndOwner) hwndOwner = GetDesktopWindow();
+        // Position as before...
+        HWND hwndOwner = GetForegroundWindow();
+        if (!hwndOwner) hwndOwner = GetDesktopWindow();
 
-    RECT rcOwner, rcDlg;
-    GetWindowRect(hwndOwner, &rcOwner);
-    GetWindowRect(hDlg, &rcDlg);
+        RECT rcOwner, rcDlg;
+        GetWindowRect(hwndOwner, &rcOwner);
+        GetWindowRect(hDlg, &rcDlg);
 
-    int dlgWidth = rcDlg.right - rcDlg.left;
-    int dlgHeight = rcDlg.bottom - rcDlg.top;
-    int x = rcOwner.left + ((rcOwner.right - rcOwner.left) - dlgWidth) / 2;
-    int y = rcOwner.top + ((rcOwner.bottom - rcOwner.top) - dlgHeight) / 2 - 40;
+        int dlgWidth = rcDlg.right - rcDlg.left;
+        int dlgHeight = rcDlg.bottom - rcDlg.top;
+        int x = rcOwner.left + ((rcOwner.right - rcOwner.left) - dlgWidth) / 2;
+        int y = rcOwner.top + ((rcOwner.bottom - rcOwner.top) - dlgHeight) / 2 - 40;
 
-    //Button Should Start Disabled
-    EnableWindow(GetDlgItem(hDlg, IDC_EBILL_BTN), FALSE);
+        // Button Should Start Disabled
+        EnableWindow(GetDlgItem(hDlg, IDC_EBILL_BTN), FALSE);
 
-    // TOPMOST
-    SetWindowPos(hDlg, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
+        // TOPMOST
+        SetWindowPos(hDlg, HWND_TOPMOST, x, y, 0, 0, SWP_NOSIZE | SWP_SHOWWINDOW);
 
-    // ATTACH THREAD TRICK
-    DWORD fgThread = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
-    DWORD curThread = GetCurrentThreadId();
-    if (fgThread != curThread) {
-        AttachThreadInput(fgThread, curThread, TRUE);
-        SetForegroundWindow(hDlg);
-        AttachThreadInput(fgThread, curThread, FALSE);
+        // ATTACH THREAD TRICK
+        DWORD fgThread = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+        DWORD curThread = GetCurrentThreadId();
+        if (fgThread != curThread) {
+            AttachThreadInput(fgThread, curThread, TRUE);
+            SetForegroundWindow(hDlg);
+            AttachThreadInput(fgThread, curThread, FALSE);
+        } else {
+            SetForegroundWindow(hDlg);
+        }
+        BringWindowToTop(hDlg);
+        SetActiveWindow(hDlg);
+
+        // Optionally, set timer for a few seconds to re-assert topmost
+        SetTimer(hDlg, 1, 100, NULL); // 100 ms
+
+        // Flash
+        FLASHWINFO fi = { sizeof(fi) };
+        fi.hwnd = hDlg;
+        fi.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
+        fi.uCount = 3;
+        fi.dwTimeout = 0;
+        FlashWindowEx(&fi);
+
+        SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
+        return FALSE;
     }
-    else {
-        SetForegroundWindow(hDlg);
-    }
-    BringWindowToTop(hDlg);
-    SetActiveWindow(hDlg);
-
-    // Optionally, set timer for a few seconds to re-assert topmost
-    SetTimer(hDlg, 1, 100, NULL); // 100 ms
-
-    // Flash
-    FLASHWINFO fi = { sizeof(fi) };
-    fi.hwnd = hDlg;
-    fi.dwFlags = FLASHW_ALL | FLASHW_TIMERNOFG;
-    fi.uCount = 3;
-    fi.dwTimeout = 0;
-    FlashWindowEx(&fi);
-
-SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
-      return FALSE;
-}
 
     case WM_COMMAND:
         if (LOWORD(wParam) == IDC_MOBILE && HIWORD(wParam) == EN_CHANGE && !handlingInput) {
@@ -112,10 +114,26 @@ SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
                 if (buf[i] >= _T('0') && buf[i] <= _T('9'))
                     filtered[k++] = buf[i];
 
-            EnableWindow(GetDlgItem(hDlg, IDC_EBILL_BTN), k == 10);
+            BOOL paperChecked = (IsDlgButtonChecked(hDlg, IDC_PAPER_BILL) == BST_CHECKED);
+            BOOL bothChecked  = (IsDlgButtonChecked(hDlg, IDC_BOTH_BILL) == BST_CHECKED);
+
+            // Enable button if valid mobile OR either checkbox is selected
+            EnableWindow(GetDlgItem(hDlg, IDC_EBILL_BTN), (k == 10) || paperChecked || bothChecked);
+
             if (lstrcmp(buf, filtered) != 0)
                 SetDlgItemText(hDlg, IDC_MOBILE, filtered);
             handlingInput = false;
+        }
+
+        if (LOWORD(wParam) == IDC_PAPER_BILL || LOWORD(wParam) == IDC_BOTH_BILL) {
+            BOOL paperChecked = (IsDlgButtonChecked(hDlg, IDC_PAPER_BILL) == BST_CHECKED);
+            BOOL bothChecked  = (IsDlgButtonChecked(hDlg, IDC_BOTH_BILL) == BST_CHECKED);
+
+            TCHAR buf[32];
+            GetDlgItemText(hDlg, IDC_MOBILE, buf, 32);
+            BOOL validMobile = (lstrlen(buf) == 10);
+
+            EnableWindow(GetDlgItem(hDlg, IDC_EBILL_BTN), validMobile || paperChecked || bothChecked);
         }
 
         if (LOWORD(wParam) == IDC_EBILL_BTN) {
@@ -124,8 +142,12 @@ SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
             GetDlgItemText(hDlg, IDC_NAME, name, 64);
 
             if (g_pInfo) {
-                g_pInfo->mobile = std::wstring(mobile,mobile+lstrlen(mobile));
-                g_pInfo->name= std::wstring(name,name+lstrlen(name));
+                g_pInfo->mobile = std::wstring(mobile, mobile + lstrlen(mobile));
+                g_pInfo->name   = std::wstring(name, name + lstrlen(name));
+
+                // Save checkbox states
+                g_pInfo->paperBill = (IsDlgButtonChecked(hDlg, IDC_PAPER_BILL) == BST_CHECKED);
+                g_pInfo->bothBill  = (IsDlgButtonChecked(hDlg, IDC_BOTH_BILL) == BST_CHECKED);
             }
             EndDialog(hDlg, IDOK);
             return TRUE;
@@ -136,12 +158,10 @@ SetFocus(GetDlgItem(hDlg, IDC_MOBILE));
             return TRUE;
         }
     }
-
     return FALSE;
 }
 
 bool ShowBillBoxDialog(CustomerInfo& info, HWND hParent) {
-
     HGLOBAL hTemplate = nullptr;
     DLGTEMPLATE* dlg = CreateDialogTemplate(hTemplate);
 
@@ -156,4 +176,3 @@ bool ShowBillBoxDialog(CustomerInfo& info, HWND hParent) {
     GlobalFree(hTemplate);
     return ret == IDOK;
 }
-

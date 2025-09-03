@@ -5,6 +5,9 @@
 #include <string>
 #include <sstream>
 #include <filesystem>
+#include <fstream>
+#include <winspool.h>
+#include <vector>
 #include <shlwapi.h>
 
 #define CURL_STATICLIB
@@ -21,6 +24,9 @@ bool conversionDone = false;
 const std::wstring inputPs = L"C:\\BillBox\\Prints\\print.ps";
 const std::wstring tempPdf = L"C:\\BillBox\\Bills\\TEMP_CONVERTED.pdf";
 const std::wstring outputFolder = L"C:\\BillBox\\Bills\\";
+
+
+bool RawForwardToPrinter(const std::wstring& printerName, const std::wstring& filePath);
 
 void BackgroundConvert() {
     std::wstring err;
@@ -76,6 +82,7 @@ bool WaitForNextFileChange(const std::wstring& filePath) {
 }
 
 int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
+
     curl_global_init(CURL_GLOBAL_ALL);
 	//WaitForNextFileChange(inputPs);
     std::thread convertThread(BackgroundConvert);
@@ -85,8 +92,10 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
 
     convertThread.join();
 
+    if(info.paperBill || info.bothBill)
+        RawForwardToPrinter(L"forward-test", L"D:\\test\\print.ps");
     if (!accepted) {
-        MessageBoxW(NULL, L"User cancelled input.", L"Cancelled", MB_OK | MB_ICONINFORMATION);
+        //MessageBoxW(NULL, L"User cancelled input.", L"Cancelled", MB_OK | MB_ICONINFORMATION);
         curl_global_cleanup();
         return 0;
     }
@@ -133,7 +142,7 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
 
     std::wstring s3Url, s3Error;
 
-    if (!UploadPdfToBillBox(localPath, info.mobile, s3Key, s3Url, s3Error)) {
+    if (!UploadPdfToBillBox(localPath, info.mobile, s3Key, s3Url, s3Error,info.paperBill)) {
     //    MessageBoxW(NULL, (L"Upload failed. PDF saved locally:\n" + localPath).c_str(),
      //               L"Upload Error", MB_ICONERROR);
         curl_global_cleanup();
@@ -146,6 +155,38 @@ int WINAPI wWinMain(HINSTANCE hInst, HINSTANCE, PWSTR, int) {
 
 
 
+
     curl_global_cleanup();
     return 0;
+}
+
+bool RawForwardToPrinter(const std::wstring& printerName, const std::wstring& filePath) {
+    HANDLE hPrinter = NULL;
+    if (!OpenPrinterW((LPWSTR)printerName.c_str(), &hPrinter, NULL)) {
+        return false;
+    }
+
+    DOC_INFO_1W docInfo;
+    docInfo.pDocName = (LPWSTR)L"BillBox Forward Job";
+    docInfo.pOutputFile = NULL;
+    docInfo.pDatatype = (LPWSTR)L"RAW";
+
+    bool success = false;
+    if (StartDocPrinterW(hPrinter, 1, (LPBYTE)&docInfo)) {
+        if (StartPagePrinter(hPrinter)) {
+            std::ifstream file(filePath, std::ios::binary);
+            if (file) {
+                std::vector<char> buffer((std::istreambuf_iterator<char>(file)), {});
+                DWORD bytesWritten = 0;
+                if (WritePrinter(hPrinter, buffer.data(), (DWORD)buffer.size(), &bytesWritten)) {
+                    success = true;
+                }
+            }
+            EndPagePrinter(hPrinter);
+        }
+        EndDocPrinter(hPrinter);
+    }
+
+    ClosePrinter(hPrinter);
+    return success;
 }

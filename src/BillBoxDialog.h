@@ -9,11 +9,15 @@
 #define IDC_LABEL_NAME      1004
 #define IDC_NAME            1005
 #define IDC_EBILL_BTN       1006
+#define IDC_PAPER_BILL      1007
+#define IDC_BOTH_BILL       1008
 
 // Customer information structure
 struct CustomerInfo {
     std::wstring mobile;
     std::wstring name;
+    BOOL paperBill= FALSE;
+    BOOL bothBill = FALSE;
 };
 
 // Function declarations

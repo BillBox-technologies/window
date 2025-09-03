@@ -25,7 +25,7 @@ std::wstring ReadStoreIDFromConfig() {
 }
 
 // Upload using HTTP API instead of S3
-bool UploadPdfToBillBox(const std::wstring& pdfPath, const std::wstring& mobile, const std::wstring& filename, std::wstring& responseOut, std::wstring& errorOut) {
+bool UploadPdfToBillBox(const std::wstring& pdfPath, const std::wstring& mobile, const std::wstring& filename, std::wstring& responseOut, std::wstring& errorOut,BOOL paperBill) {
     if (!PathFileExistsW(pdfPath.c_str())) {
         std::wstring msg = L"❌ File does not exist:\n" + pdfPath;
         MessageBoxW(nullptr, msg.c_str(), L"BillBox Upload", MB_OK | MB_ICONERROR);
@@ -33,7 +33,7 @@ bool UploadPdfToBillBox(const std::wstring& pdfPath, const std::wstring& mobile,
         return false;
     }
 
-    if (mobile.empty()) {
+    if (mobile.empty() && paperBill==FALSE) {
         MessageBoxW(nullptr, L"❌ Missing mobile number (parameter is empty).", L"BillBox Upload", MB_OK | MB_ICONERROR);
         errorOut = L"Missing mobile parameter";
         return false;

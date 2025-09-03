@@ -15,7 +15,18 @@ std::wifstream inFile(inputPs.c_str());
 
     // Compose command line
     std::wstring cmd = L"\"" + gsPath + L"\" -sDEVICE=pdfwrite -o \"" + outputPdf + L"\" -dBATCH -dNOPAUSE -dSAFER \"" + inputPs + L"\"";
-
+    /*
+std::wstring cmd = L"\"" + gsPath + L"\""
+    L" -sDEVICE=pdfwrite"
+    L" -dCompatibilityLevel=1.7"
+    L" -dPDFSETTINGS=/prepress"
+    L" -dColorConversionStrategy=/LeaveColorUnchanged"
+    L" -dDownsampleColorImages=false"
+    L" -dAutoFilterColorImages=false"
+    L" -dAutoFilterGrayImages=false"
+    L" -o \"" + outputPdf + L"\""
+    L" -dBATCH -dNOPAUSE -dSAFER"
+    L" \"" + inputPs+L"\""; */
     STARTUPINFOW si = { sizeof(si) };
     PROCESS_INFORMATION pi;
     si.dwFlags = STARTF_USESHOWWINDOW;
