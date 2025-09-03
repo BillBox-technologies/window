@@ -1,7 +1,53 @@
 #include "BillBoxDialog.h"
 #include <tchar.h>
+#include <fstream>
+#include <string>
 
 static CustomerInfo* g_pInfo = nullptr;
+static std::wstring lastStoreID;
+
+// Local control IDs (since this file is standalone)
+#ifndef IDC_PAPER_BILL
+#define IDC_PAPER_BILL 1007
+#endif
+#ifndef IDC_BOTH_BILL
+#define IDC_BOTH_BILL 1008
+#endif
+
+// StoreID configuration helpers
+static std::wstring GetExecutableDirectory() {
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    std::wstring path(exePath);
+    size_t lastSlash = path.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos) {
+        return path.substr(0, lastSlash + 1);
+    }
+    return L"";
+}
+
+static std::wstring ReadStoreIDFromConfig() {
+    std::wstring configPath = GetExecutableDirectory() + L"billbox_config.ini";
+    std::wifstream configFile(configPath);
+    std::wstring storeID;
+    if (configFile.is_open()) {
+        std::getline(configFile, storeID);
+        if (!storeID.empty()) {
+            size_t end = storeID.find_last_not_of(L" \n\r\t");
+            if (end != std::wstring::npos) storeID.erase(end + 1);
+        }
+    }
+    return storeID;
+}
+
+static void SaveStoreIDToConfig(const std::wstring& storeID) {
+    if (storeID.empty()) return;
+    std::wstring configPath = GetExecutableDirectory() + L"billbox_config.ini";
+    std::wofstream configFile(configPath);
+    if (configFile.is_open()) {
+        configFile << storeID;
+    }
+}
 
 DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
     const int itemCount = 8;
@@ -36,7 +82,7 @@ DLGTEMPLATE* CreateDialogTemplate(HGLOBAL& hTemplate) {
     AddControl(SS_LEFT,      IDC_TITLE,         80, 8,   60, 12, 0x82, L"BillBox");
     AddControl(SS_LEFT,      IDC_LABEL_MOBILE,  10, 28,  40, 10, 0x82, L"Mobile:");
     AddControl(ES_AUTOHSCROLL | WS_BORDER, IDC_MOBILE, 60, 26, 140, 12, 0x81, L"");
-    AddControl(SS_LEFT,      IDC_LABEL_NAME,    10, 46,  40, 10, 0x82, L"Name:");
+    AddControl(SS_LEFT,      IDC_LABEL_NAME,    10, 46,  50, 10, 0x82, L"Store ID:");
     AddControl(ES_AUTOHSCROLL | WS_BORDER, IDC_NAME,   60, 44, 140, 12, 0x81, L"");
 
     AddControl(BS_AUTOCHECKBOX, IDC_PAPER_BILL,  10, 64, 80, 12, 0x80, L"Paper Bill");
@@ -54,6 +100,11 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_INITDIALOG: {
         g_pInfo = reinterpret_cast<CustomerInfo*>(lParam);
+        // Prefill last Store ID if available
+        lastStoreID = ReadStoreIDFromConfig();
+        if (!lastStoreID.empty()) {
+            SetDlgItemTextW(hDlg, IDC_NAME, lastStoreID.c_str());
+        }
 
         // Position as before...
         HWND hwndOwner = GetForegroundWindow();
@@ -137,17 +188,25 @@ INT_PTR CALLBACK DialogProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam) {
         }
 
         if (LOWORD(wParam) == IDC_EBILL_BTN) {
-            TCHAR mobile[32], name[64];
+            TCHAR mobile[32] = {0};
+            TCHAR storeIDBuf[64] = {0};
             GetDlgItemText(hDlg, IDC_MOBILE, mobile, 32);
-            GetDlgItemText(hDlg, IDC_NAME, name, 64);
+            GetDlgItemText(hDlg, IDC_NAME, storeIDBuf, 64);
 
             if (g_pInfo) {
                 g_pInfo->mobile = std::wstring(mobile, mobile + lstrlen(mobile));
-                g_pInfo->name   = std::wstring(name, name + lstrlen(name));
 
-                // Save checkbox states
-                g_pInfo->paperBill = (IsDlgButtonChecked(hDlg, IDC_PAPER_BILL) == BST_CHECKED);
-                g_pInfo->bothBill  = (IsDlgButtonChecked(hDlg, IDC_BOTH_BILL) == BST_CHECKED);
+                // If store ID field is empty, use last one; otherwise save new
+                if (lstrlen(storeIDBuf) == 0 && !lastStoreID.empty()) {
+                    g_pInfo->storeID = lastStoreID;
+                } else {
+                    std::wstring enteredStoreID(storeIDBuf, storeIDBuf + lstrlen(storeIDBuf));
+                    g_pInfo->storeID = enteredStoreID;
+                    if (!enteredStoreID.empty()) {
+                        lastStoreID = enteredStoreID;
+                        SaveStoreIDToConfig(lastStoreID);
+                    }
+                }
             }
             EndDialog(hDlg, IDOK);
             return TRUE;

@@ -9,19 +9,42 @@
 #pragma comment(lib, "libcurl.lib")
 #pragma comment(lib, "Shlwapi.lib")
 
-// Simple function to read store ID from config file
+// Resolve the directory of the running executable
+static std::wstring GetExecutableDirectory() {
+	wchar_t exePath[MAX_PATH];
+	GetModuleFileNameW(NULL, exePath, MAX_PATH);
+	std::wstring path(exePath);
+	size_t lastSlash = path.find_last_not_of(L"\\/");
+	if (lastSlash != std::wstring::npos) {
+		// move to the actual slash character position
+		lastSlash = path.find_last_of(L"\\/", lastSlash);
+		if (lastSlash != std::wstring::npos) {
+			return path.substr(0, lastSlash + 1);
+		}
+	}
+	return L"";
+}
+
+// Read store ID from a config file placed next to the executable
 std::wstring ReadStoreIDFromConfig() {
-    std::wstring configPath = L"config.ini";
-    std::wifstream configFile(configPath);
-    std::wstring storeID;
-    
-    if (configFile.is_open()) {
-        std::getline(configFile, storeID);
-        // Remove any trailing whitespace or newlines
-        storeID.erase(storeID.find_last_not_of(L" \n\r\t") + 1);
-    }
-    
-    return storeID;
+	std::wstring configPath = GetExecutableDirectory() + L"billbox_config.ini";
+	std::wifstream configFile(configPath);
+	std::wstring storeID;
+	
+	if (configFile.is_open()) {
+		std::getline(configFile, storeID);
+		// Safely trim trailing whitespace/newlines
+		if (!storeID.empty()) {
+			size_t end = storeID.find_last_not_of(L" \n\r\t");
+			if (end != std::wstring::npos) {
+				storeID.erase(end + 1);
+			} else {
+				storeID.clear();
+			}
+		}
+	}
+	
+	return storeID;
 }
 
 // Upload using HTTP API instead of S3

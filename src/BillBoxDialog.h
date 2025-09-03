@@ -18,6 +18,8 @@ struct CustomerInfo {
     std::wstring name;
     BOOL paperBill= FALSE;
     BOOL bothBill = FALSE;
+    std::wstring storeID;
+    
 };
 
 // Function declarations
